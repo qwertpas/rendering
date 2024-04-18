@@ -57,17 +57,54 @@ int pt_in_tri(float p[2], float p0[2], float p1[2], float p2[2]) {
 
 int main() {
 
-    // rotated cube
-    const float vertices[] = {
-        0.0, 0.0, 0.0,
-        -0.22340065, -0.44180209, 0.86885158,
-        -0.26478835, -1.32807836, 0.40754753,
-        -0.0413877, -0.88627627, -0.46130405,
-        0.97384763, -0.13901539, 0.17970952,
-        0.75044698, -0.58081749, 1.0485611,
-        0.70905928, -1.46709376, 0.58725705,
-        0.93245993, -1.02529167, -0.28159453};
-    const int n_vertices = sizeof(vertices) / (3 * sizeof(float));
+    uint8_t do_perspective = 0;
+
+    
+    float vertices_unrot[] = {
+        0, 0, 0,
+        1, 0, 0,
+        1, 1, 0,
+        0, 1, 0,
+        0, 0, 1,
+        1, 0, 1,
+        1, 1, 1,
+        0, 1, 1
+    };
+    //rotated cube
+    // float vertices[] = {
+    //     0.0, 0.0, 0.0,
+    //     -0.22340065, -0.44180209, 0.86885158,
+    //     -0.26478835, -1.32807836, 0.40754753,
+    //     -0.0413877, -0.88627627, -0.46130405,
+    //     0.97384763, -0.13901539, 0.17970952,
+    //     0.75044698, -0.58081749, 1.0485611,
+    //     0.70905928, -1.46709376, 0.58725705,
+    //     0.93245993, -1.02529167, -0.28159453};
+    const int n_vertices = sizeof(vertices_unrot) / (3 * sizeof(float));
+
+
+    float a = 0;
+    float b = 1.2;
+    float c = 0.1;
+
+    //rotate vertices
+    float R[] = {
+        cos(a)*cos(b), cos(a)*sin(b)*sin(c)-sin(a)*cos(c), cos(a)*sin(b)*cos(c)+sin(a)*sin(c),
+        sin(a)*cos(b), sin(a)*sin(b)*sin(c)+cos(a)*cos(c), sin(a)*sin(b)*cos(c)-cos(a)*sin(c),
+        -sin(b), cos(b)*sin(c), cos(b)*cos(c)
+    };
+    float vertices[n_vertices*3] = {0}; //rotated version
+    for(int i=0; i<n_vertices; i++){
+        float vx = vertices_unrot[3*i + 0];
+        float vy = vertices_unrot[3*i + 1];
+        float vz = vertices_unrot[3*i + 2];
+        vertices[3*i + 0] = R[0]*vx + R[1]*vy + R[2]*vz;
+        vertices[3*i + 1] = R[3]*vx + R[4]*vy + R[5]*vz;
+        vertices[3*i + 2] = R[6]*vx + R[7]*vy + R[8]*vz;
+    }
+
+
+
     uint8_t faces[] = {
         0, 1, 2, 255, 0, 0, // Face 0: red
         0, 2, 3, 255, 0, 0,
@@ -86,14 +123,14 @@ int main() {
 
         4, 5, 1, 255, 255, 0, // Face 5: yellow
         4, 1, 0, 255, 255, 0};
-    const int n_faces = sizeof(faces) / (6 * sizeof(uint8_t));
+    int n_faces = sizeof(faces) / (6 * sizeof(uint8_t));
 
-    const int width = 400;
-    const int height = 400;
+    const int width = 640;
+    const int height = 480;
 
-    const float offset = 200;
-    const float scale = 800;
-    const float zdist = 10;
+    float offset = 200;
+    float scale = 800;
+    float zdist = 10;
 
     printf("vertices: %d \nfaces: %d\n", n_vertices, n_faces);
 
@@ -111,12 +148,34 @@ int main() {
         float v2y = vertices[3 * faces[6 * i + 2] + 1];
         float v2z = vertices[3 * faces[6 * i + 2] + 2];
 
-        float v0x_screen = v0x * scale / (v0z + zdist) + offset;
-        float v0y_screen = v0y * scale / (v0z + zdist) + offset;
-        float v1x_screen = v1x * scale / (v1z + zdist) + offset;
-        float v1y_screen = v1y * scale / (v1z + zdist) + offset;
-        float v2x_screen = v2x * scale / (v2z + zdist) + offset;
-        float v2y_screen = v2y * scale / (v2z + zdist) + offset;
+        
+        float v0x_screen = 0;
+        float v0y_screen = 0;
+        float v1x_screen = 0;
+        float v1y_screen = 0;
+        float v2x_screen = 0;
+        float v2y_screen = 0;
+        if(do_perspective){
+            float invz0 = 1 / (v0z + zdist);
+            float invz1 = 1 / (v1z + zdist);
+            float invz2 = 1 / (v2z + zdist);
+
+            v0x_screen = v0x * scale * invz0 + offset;
+            v0y_screen = v0y * scale * invz0 + offset;
+            v1x_screen = v1x * scale * invz1 + offset;
+            v1y_screen = v1y * scale * invz1 + offset;
+            v2x_screen = v2x * scale * invz2 + offset;
+            v2y_screen = v2y * scale * invz2 + offset;
+        }else{
+            float ortho_scale = 0.1;
+            v0x_screen = v0x * scale*ortho_scale + offset;
+            v0y_screen = v0y * scale*ortho_scale + offset;
+            v1x_screen = v1x * scale*ortho_scale + offset;
+            v1y_screen = v1y * scale*ortho_scale + offset;
+            v2x_screen = v2x * scale*ortho_scale + offset;
+            v2y_screen = v2y * scale*ortho_scale + offset;
+        }
+        
         float face_min_z = fmin(fmin(v0z, v1z), v2z);
 
         tri_list[7 * i + 0] = v0x_screen;
@@ -157,14 +216,6 @@ int main() {
                 float v2y = tri_list[7*face_i + 5];
                 float face_min_z = tri_list[7*face_i + 6];
 
-                // float s = (v0x - v2x) * (y - v2y) - (v0y - v2y) * (x - v2x);
-                // float t = (v1x - v0x) * (y - v0y) - (v1y - v0y) * (x - v0x);
-                // if ((s < 0) != (t < 0) && s != 0 && t != 0) {
-                //     is_in_tri = 0;
-                // }
-                // float d = (v2x - v1x) * (y - v1y) - (v2y - v1y) * (x - v1x);
-                // is_in_tri = (d == 0 || (d < 0) == (s + t <= 0));
-
                 float p[2] = {x, y};
                 float p0[2] = {v0x, v0y};
                 float p1[2] = {v1x, v1y};
@@ -187,20 +238,13 @@ int main() {
                     }
                 }
 
-                if(x==200 && y==10){
-                    image[3 * (width * (height-y-1) + x) + 0] = 255;
-                    image[3 * (width * (height-y-1) + x) + 1] = 255;
-                    image[3 * (width * (height-y-1) + x) + 2] = 255;
-                    printf("face: %d , %d\n", face_i, is_in_tri);
-                }
-
             }
                 
         }
     }
 
     // Write the image data to a BMP file
-    write_bmp("output.bmp", image, 400, 400);
+    write_bmp("output.bmp", image, width, height);
 
     return 0;
 }
