@@ -108,6 +108,11 @@ int main() {
         float pitch = step*6.28/nsteps + 0.01;
         float yaw = 2*step*6.28/nsteps + 0.3;
 
+        float offset_x = width/2 * (1 + 0.5*sin(6.28*step/nsteps));
+        float offset_y = height/2 * (1 + 0.5*sin(6.28*step/nsteps + 2));
+        float scale = 800;
+        float zdist = 10;
+
         //rotate vertices
         float R[] = {
             cos(roll)*cos(pitch), cos(roll)*sin(pitch)*sin(yaw)-sin(roll)*cos(yaw), cos(roll)*sin(pitch)*cos(yaw)+sin(roll)*sin(yaw),
@@ -123,13 +128,6 @@ int main() {
             vertices[3*i + 1] = R[3]*vx + R[4]*vy + R[5]*vz;
             vertices[3*i + 2] = R[6]*vx + R[7]*vy + R[8]*vz;
         }
-
-
-        
-
-        float offset = 200;
-        float scale = 800;
-        float zdist = 10;
 
         // printf("vertices: %d \nfaces: %d\n", n_vertices, n_faces);
 
@@ -159,23 +157,25 @@ int main() {
                 float invz1 = 1 / (v1z + zdist);
                 float invz2 = 1 / (v2z + zdist);
 
-                v0x_screen = v0x * scale * invz0 + offset;
-                v0y_screen = v0y * scale * invz0 + offset;
-                v1x_screen = v1x * scale * invz1 + offset;
-                v1y_screen = v1y * scale * invz1 + offset;
-                v2x_screen = v2x * scale * invz2 + offset;
-                v2y_screen = v2y * scale * invz2 + offset;
+                v0x_screen = v0x * scale * invz0 + offset_x;
+                v0y_screen = v0y * scale * invz0 + offset_y;
+                v1x_screen = v1x * scale * invz1 + offset_x;
+                v1y_screen = v1y * scale * invz1 + offset_y;
+                v2x_screen = v2x * scale * invz2 + offset_x;
+                v2y_screen = v2y * scale * invz2 + offset_y;
             }else{
                 float ortho_scale = 0.1;
-                v0x_screen = v0x * scale*ortho_scale + offset;
-                v0y_screen = v0y * scale*ortho_scale + offset;
-                v1x_screen = v1x * scale*ortho_scale + offset;
-                v1y_screen = v1y * scale*ortho_scale + offset;
-                v2x_screen = v2x * scale*ortho_scale + offset;
-                v2y_screen = v2y * scale*ortho_scale + offset;
+                v0x_screen = v0x * scale*ortho_scale + offset_x;
+                v0y_screen = v0y * scale*ortho_scale + offset_y;
+                v1x_screen = v1x * scale*ortho_scale + offset_x;
+                v1y_screen = v1y * scale*ortho_scale + offset_y;
+                v2x_screen = v2x * scale*ortho_scale + offset_x;
+                v2y_screen = v2y * scale*ortho_scale + offset_y;
             }
             
             float face_min_z = fmin(fmin(v0z, v1z), v2z);
+            float face_avg = (v0z + v1z + v2z) / 3.;
+            float face_z = 0.99*face_min_z + 0.01*face_avg;
 
             tri_list[7 * i + 0] = v0x_screen;
             tri_list[7 * i + 1] = v0y_screen;
@@ -183,7 +183,7 @@ int main() {
             tri_list[7 * i + 3] = v1y_screen;
             tri_list[7 * i + 4] = v2x_screen;
             tri_list[7 * i + 5] = v2y_screen;
-            tri_list[7 * i + 6] = face_min_z;
+            tri_list[7 * i + 6] = face_z;
         }
 
         // //print out tri_list
