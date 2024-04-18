@@ -36,11 +36,14 @@ void write_bmp(const char *filename, uint8_t *data, int width, int height) {
     BMPHeader header = {0x4D42, sizeof(BMPHeader) + sizeof(BMPInfoHeader) + width * height * 3, 0, 0, sizeof(BMPHeader) + sizeof(BMPInfoHeader)};
     BMPInfoHeader info_header = {sizeof(BMPInfoHeader), width, height, 1, 24, 0, width * height * 3, 0, 0, 0, 0};
 
+
     fwrite(&header, sizeof(BMPHeader), 1, file);
     fwrite(&info_header, sizeof(BMPInfoHeader), 1, file);
     fwrite(data, sizeof(uint8_t), width * height * 3, file);
 
     fclose(file);
+
+    printf("finish writing file\n");
 }
 
 int pt_in_tri(float p[2], float p0[2], float p1[2], float p2[2]) {
@@ -68,7 +71,7 @@ int main() {
         0.70905928, -1.46709376, 0.58725705,
         0.93245993, -1.02529167, -0.28159453};
     const int n_vertices = sizeof(vertices) / (3 * sizeof(float));
-    uint8_t faces[] = {
+    const uint8_t faces[] = {
         0, 1, 2, 255, 0, 0, // Face 0: red
         0, 2, 3, 255, 0, 0,
 
@@ -111,12 +114,19 @@ int main() {
         float v2y = vertices[3 * faces[6 * i + 2] + 1];
         float v2z = vertices[3 * faces[6 * i + 2] + 2];
 
-        float v0x_screen = v0x * scale / (v0z + zdist) + offset;
-        float v0y_screen = v0y * scale / (v0z + zdist) + offset;
-        float v1x_screen = v1x * scale / (v1z + zdist) + offset;
-        float v1y_screen = v1y * scale / (v1z + zdist) + offset;
-        float v2x_screen = v2x * scale / (v2z + zdist) + offset;
-        float v2y_screen = v2y * scale / (v2z + zdist) + offset;
+        // float v0x_screen = v0x * scale / (v0z + zdist) + offset;
+        // float v0y_screen = v0y * scale / (v0z + zdist) + offset;
+        // float v1x_screen = v1x * scale / (v1z + zdist) + offset;
+        // float v1y_screen = v1y * scale / (v1z + zdist) + offset;
+        // float v2x_screen = v2x * scale / (v2z + zdist) + offset;
+        // float v2y_screen = v2y * scale / (v2z + zdist) + offset;
+
+        float v0x_screen = v0x * scale*0.1 + offset;
+        float v0y_screen = v0y * scale*0.1 + offset;
+        float v1x_screen = v1x * scale*0.1 + offset;
+        float v1y_screen = v1y * scale*0.1 + offset;
+        float v2x_screen = v2x * scale*0.1 + offset;
+        float v2y_screen = v2y * scale*0.1 + offset;
         float face_min_z = fmin(fmin(v0z, v1z), v2z);
 
         tri_list[7 * i + 0] = v0x_screen;
@@ -145,6 +155,8 @@ int main() {
 
             float min_z = 1e12;
 
+            // printf("%d %d\n", x,y);
+
             for (int face_i = 0; face_i < n_faces; face_i++) {
 
                 uint8_t is_in_tri = 0;
@@ -157,20 +169,15 @@ int main() {
                 float v2y = tri_list[7*face_i + 5];
                 float face_min_z = tri_list[7*face_i + 6];
 
-                // float s = (v0x - v2x) * (y - v2y) - (v0y - v2y) * (x - v2x);
-                // float t = (v1x - v0x) * (y - v0y) - (v1y - v0y) * (x - v0x);
-                // if ((s < 0) != (t < 0) && s != 0 && t != 0) {
-                //     is_in_tri = 0;
-                // }
-                // float d = (v2x - v1x) * (y - v1y) - (v2y - v1y) * (x - v1x);
-                // is_in_tri = (d == 0 || (d < 0) == (s + t <= 0));
+                float s = (v0x - v2x) * (y - v2y) - (v0y - v2y) * (x - v2x);
+                float t = (v1x - v0x) * (y - v0y) - (v1y - v0y) * (x - v0x);
+                if ((s < 0) != (t < 0) && s != 0 && t != 0) {
+                    is_in_tri = 0;
+                }
+                float d = (v2x - v1x) * (y - v1y) - (v2y - v1y) * (x - v1x);
+                is_in_tri = (d == 0 || (d < 0) == (s + t <= 0));
 
-                float p[2] = {x, y};
-                float p0[2] = {v0x, v0y};
-                float p1[2] = {v1x, v1y};
-                float p2[2] = {v2x, v2y};
-
-                is_in_tri = pt_in_tri(p, p0, p1, p2);
+                
 
                 if(is_in_tri){
                     if(face_min_z < min_z){
@@ -181,17 +188,17 @@ int main() {
                         uint8_t g = faces[6*face_i + 4];
                         uint8_t b = faces[6*face_i + 5];
 
-                        image[3 * (width * (height-y-1) + x) + 0] = r;
-                        image[3 * (width * (height-y-1) + x) + 1] = g;
-                        image[3 * (width * (height-y-1) + x) + 2] = b;
+                        image[3 * (width * (width-y) + x) + 0] = 255;
+                        image[3 * (width * (width-y) + x) + 1] = g;
+                        image[3 * (width * (width-y) + x) + 2] = 0;
                     }
                 }
 
-                if(x==200 && y==10){
-                    image[3 * (width * (height-y-1) + x) + 0] = 255;
-                    image[3 * (width * (height-y-1) + x) + 1] = 255;
-                    image[3 * (width * (height-y-1) + x) + 2] = 255;
-                    printf("face: %d , %d\n", face_i, is_in_tri);
+                if(x == 399 && y==399){
+                    printf("399\n");
+                    image[3 * (width * (width-y) + x) + 0] = 255;
+                    image[3 * (width * (width-y) + x) + 1] = 255;
+                    image[3 * (width * (width-y) + x) + 2] = 255;
                 }
 
             }
@@ -201,6 +208,8 @@ int main() {
 
     // Write the image data to a BMP file
     write_bmp("output.bmp", image, 400, 400);
+
+    printf("return 0\n");
 
     return 0;
 }
