@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <math.h>
+#include <time.h>
 
 #pragma pack(push, 1)
 typedef struct {
@@ -43,30 +44,40 @@ void write_bmp(const char *filename, uint8_t *data, int width, int height) {
     fclose(file);
 }
 
-int pt_in_tri(float p[2], float p0[2], float p1[2], float p2[2]) {
-    float s = (p0[0] - p2[0]) * (p[1] - p2[1]) - (p0[1] - p2[1]) * (p[0] - p2[0]);
-    float t = (p1[0] - p0[0]) * (p[1] - p0[1]) - (p1[1] - p0[1]) * (p[0] - p0[0]);
+int pt_in_tri(int32_t p[2], int32_t p0[2], int32_t p1[2], int32_t p2[2]) {
+    int32_t s = (p0[0] - p2[0]) * (p[1] - p2[1]) - (p0[1] - p2[1]) * (p[0] - p2[0]);
+    int32_t t = (p1[0] - p0[0]) * (p[1] - p0[1]) - (p1[1] - p0[1]) * (p[0] - p0[0]);
 
     if ((s < 0) != (t < 0) && s != 0 && t != 0) {
         return 0;
     }
 
-    float d = (p2[0] - p1[0]) * (p[1] - p1[1]) - (p2[1] - p1[1]) * (p[0] - p1[0]);
+    int32_t d = (p2[0] - p1[0]) * (p[1] - p1[1]) - (p2[1] - p1[1]) * (p[0] - p1[0]);
     return d == 0 || (d < 0) == (s + t <= 0);
 }
+
+int max3(int a, int b, int c){
+    return (a>=b&&a>=c)?a:(b>=a&&b>=c)?b:c;
+}
+
+int min3(int a, int b, int c){
+    return (a<=b&&a<=c)?a:(b<=a&&b<=c)?b:c;
+}
+
+
 
 
 
 //cube
 float vertices_unrot[] = {
-    0, 0, 0,
-    1, 0, 0,
-    1, 1, 0,
-    0, 1, 0,
-    0, 0, 1,
-    1, 0, 1,
-    1, 1, 1,
-    0, 1, 1
+    0, 0, 0, // 0
+    1, 0, 0, // 1
+    1, 1, 0, // 2
+    0, 1, 0, // 3
+    0, 0, 1, // 4
+    1, 0, 1, // 5
+    1, 1, 1, // 6
+    0, 1, 1  // 7
 };
 const int n_vertices = sizeof(vertices_unrot) / (3 * sizeof(float));
 uint8_t faces[] = {
@@ -85,23 +96,26 @@ uint8_t faces[] = {
     3, 2, 6, 0, 255, 255, // Face 4: cyan
     3, 6, 7, 0, 255, 255,
 
-    4, 5, 1, 255, 255, 0, // Face 5: yellow
-    4, 1, 0, 255, 255, 0};
+    // 2, 3, 6, 0, 255, 255, // Face 4: cyan
+    // 3, 6, 7, 0, 255, 255,
+
+    1, 4, 5, 255, 255, 0, // Face 5: yellow
+    1, 0, 4, 255, 255, 0
+};
 int n_faces = sizeof(faces) / (6 * sizeof(uint8_t));
 
 const int width = 640;
 const int height = 480;
-uint8_t do_perspective = 0;
+uint8_t do_perspective = 1;
 
 
 
 
 int main() {
-    
-    int n_visible_faces = 0;
+
+    clock_t begin = clock();
 
     int nsteps = 100;
-    
     for(int step = 0; step < nsteps; step++){
 
         printf("step: %d\n", step);
@@ -133,7 +147,10 @@ int main() {
 
         // printf("vertices: %d \nfaces: %d\n", n_vertices, n_faces);
 
-        float tri_list[3 * 2 * n_faces + n_faces];
+
+        int n_visible_faces = 0;
+
+        int32_t tri_list[3 * 2 * n_faces + n_faces + n_faces];
         for (int i = 0; i < n_faces; i++) {
             float v0x = vertices[3 * faces[6 * i + 0] + 0];
             float v0y = vertices[3 * faces[6 * i + 0] + 1];
@@ -147,11 +164,6 @@ int main() {
             float v2y = vertices[3 * faces[6 * i + 2] + 1];
             float v2z = vertices[3 * faces[6 * i + 2] + 2];
 
-            // float area = (v1x - v0x) * (v2y - v0y) - (v2x - v0x) * (v1y - v0y);
-            // if(area < 0){
-            //     continue; //skip this triangle
-            // }
-            // n_visible_faces++;
             
             float v0x_screen = 0;
             float v0y_screen = 0;
@@ -179,24 +191,36 @@ int main() {
                 v2x_screen = v2x * scale*ortho_scale + offset_x;
                 v2y_screen = v2y * scale*ortho_scale + offset_y;
             }
+
+            float area = (v1x_screen - v0x_screen) * (v2y_screen - v0y_screen) - (v2x_screen - v0x_screen) * (v1y_screen - v0y_screen);
+
+            if(area <= 0){
+                continue; //skip this triangle
+            }
+            
             
             float face_min_z = fmin(fmin(v0z, v1z), v2z);
-            float face_avg = (v0z + v1z + v2z) / 3.;
-            float face_z = 0.99*face_min_z + 0.01*face_avg;
+            // float face_avg = (v0z + v1z + v2z) / 3.;
+            // float face_z = 0.99*face_min_z + 0.01*face_avg;
 
-            tri_list[7 * i + 0] = v0x_screen;
-            tri_list[7 * i + 1] = v0y_screen;
-            tri_list[7 * i + 2] = v1x_screen;
-            tri_list[7 * i + 3] = v1y_screen;
-            tri_list[7 * i + 4] = v2x_screen;
-            tri_list[7 * i + 5] = v2y_screen;
-            tri_list[7 * i + 6] = face_z;
+            tri_list[8 * n_visible_faces + 0] = (int32_t) v0x_screen;
+            tri_list[8 * n_visible_faces + 1] = (int32_t) v0y_screen;
+            tri_list[8 * n_visible_faces + 2] = (int32_t) v1x_screen;
+            tri_list[8 * n_visible_faces + 3] = (int32_t) v1y_screen;
+            tri_list[8 * n_visible_faces + 4] = (int32_t) v2x_screen;
+            tri_list[8 * n_visible_faces + 5] = (int32_t) v2y_screen;
+
+            tri_list[8 * n_visible_faces + 6] = (int32_t) face_min_z; //precacluate
+            tri_list[8 * n_visible_faces + 7] = (int32_t) i; //face index
+
+            n_visible_faces++;
         }
 
-        // //print out tri_list
-        // for (int i = 0; i < sizeof(tri_list) / sizeof(float); i += 7) {
-        //     for (int j = 0; j < 7; j++) {
-        //         printf("%f ", tri_list[i+j]);
+        // print out tri_list
+        // printf("n_visible_faces: %d\n", n_visible_faces);
+        // for (int i = 0; i < sizeof(tri_list) / sizeof(float); i += 8) {
+        //     for (int j = 0; j < 8; j++) {
+        //         printf("%d ", tri_list[i+j]);
         //     }
         //     printf("\n");
         // }
@@ -208,40 +232,58 @@ int main() {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
 
-                float min_z = 1e12;
+                // float min_z = 1e12;
 
-                for (int face_i = 0; face_i < n_faces; face_i++) {
+                for (int i = 0; i < n_visible_faces; i++) {
 
                     uint8_t is_in_tri = 0;
 
-                    float v0x = tri_list[7*face_i + 0];
-                    float v0y = tri_list[7*face_i + 1];
-                    float v1x = tri_list[7*face_i + 2];
-                    float v1y = tri_list[7*face_i + 3];
-                    float v2x = tri_list[7*face_i + 4];
-                    float v2y = tri_list[7*face_i + 5];
-                    float face_min_z = tri_list[7*face_i + 6];
+                    int32_t v0x = tri_list[8*i + 0];
+                    int32_t v0y = tri_list[8*i + 1];
+                    int32_t v1x = tri_list[8*i + 2];
+                    int32_t v1y = tri_list[8*i + 3];
+                    int32_t v2x = tri_list[8*i + 4];
+                    int32_t v2y = tri_list[8*i + 5];
+                    // int32_t face_min_z = tri_list[8*i + 6];
+                    int32_t face_i = tri_list[8*i + 7];
 
-                    float p[2] = {x, y};
-                    float p0[2] = {v0x, v0y};
-                    float p1[2] = {v1x, v1y};
-                    float p2[2] = {v2x, v2y};
+                    int32_t p[2] = {x, y};
+                    int32_t p0[2] = {v0x, v0y};
+                    int32_t p1[2] = {v1x, v1y};
+                    int32_t p2[2] = {v2x, v2y};
 
-                    is_in_tri = pt_in_tri(p, p0, p1, p2);
-
+                    //saves around 6% time
+                    if(x > max3(v0x, v1x, v2x)) is_in_tri = 0;
+                    else if(x < min3(v0x, v1x, v2x)) is_in_tri = 0;
+                    else if(y > max3(v0y, v1y, v2y)) is_in_tri = 0;
+                    else if(y < min3(v0y, v1y, v2y)) is_in_tri = 0;
+                    else{
+                        is_in_tri = pt_in_tri(p, p0, p1, p2);
+                    }
+                    // is_in_tri = pt_in_tri(p, p0, p1, p2);
+                    
                     if(is_in_tri){
-                        if(face_min_z < min_z){
-                            min_z = face_min_z;
+                        uint8_t r = faces[6*face_i + 3];
+                        uint8_t g = faces[6*face_i + 4];
+                        uint8_t b = faces[6*face_i + 5];
 
-                            //draw pixel
-                            uint8_t r = faces[6*face_i + 3];
-                            uint8_t g = faces[6*face_i + 4];
-                            uint8_t b = faces[6*face_i + 5];
+                        image[3 * (width * (height-y-1) + x) + 0] = b;
+                        image[3 * (width * (height-y-1) + x) + 1] = g;
+                        image[3 * (width * (height-y-1) + x) + 2] = r;
 
-                            image[3 * (width * (height-y-1) + x) + 0] = r;
-                            image[3 * (width * (height-y-1) + x) + 1] = g;
-                            image[3 * (width * (height-y-1) + x) + 2] = b;
-                        }
+
+                        // if(face_min_z < min_z){
+                        //     min_z = face_min_z;
+
+                        //     //draw pixel
+                        //     uint8_t r = faces[6*face_i + 3];
+                        //     uint8_t g = faces[6*face_i + 4];
+                        //     uint8_t b = faces[6*face_i + 5];
+
+                        //     image[3 * (width * (height-y-1) + x) + 0] = b;
+                        //     image[3 * (width * (height-y-1) + x) + 1] = g;
+                        //     image[3 * (width * (height-y-1) + x) + 2] = r;
+                        // }
                     }
 
                 }
@@ -259,6 +301,10 @@ int main() {
 
 
     }
+
+    clock_t end = clock();
+    double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    printf("Total execution time: %f seconds\n", time_spent);
 
     return 0;
 }
