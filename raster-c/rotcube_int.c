@@ -58,26 +58,16 @@ int pt_in_tri(int16_t p[2], int16_t p0[2], int16_t p1[2], int16_t p2[2]) {
 }
 
 int max3(int a, int b, int c){
-    return (a>=b&&a>=c)?a:(b>=a&&b>=c)?b:c;
+    return (a>=b&&a>=c)?a:(b>=c)?b:c;
 }
 
 int min3(int a, int b, int c){
-    return (a<=b&&a<=c)?a:(b<=a&&b<=c)?b:c;
+    return (a<=b&&a<=c)?a:(b<=c)?b:c;
 }
 
-void cross_product(float v1[3], float v2[3], float result[3]) {
-    result[0] = v1[1] * v2[2] - v1[2] * v2[1];
-    result[1] = v1[2] * v2[0] - v1[0] * v2[2];
-    result[2] = v1[0] * v2[1] - v1[1] * v2[0];
+float fmin3(float a, float b, float c){
+    return (a<=b&&a<=c)?a:(b<=c)?b:c;
 }
-
-void normalize(float vector[3]) {
-    float magnitude = sqrtf(vector[0]*vector[0] + vector[1]*vector[1] + vector[2]*vector[2]);
-    vector[0] /= magnitude;
-    vector[1] /= magnitude;
-    vector[2] /= magnitude;
-}
-
 
 //cube
 float vertices_unrot[] = {
@@ -335,6 +325,8 @@ uint8_t do_perspective = 1;
 
 int main() {
 
+    printf("nfaces %d\n", n_faces);
+
     clock_t begin = clock();
 
     int nsteps = 100;
@@ -344,15 +336,22 @@ int main() {
         // float yaw = 2*step*6.28/nsteps + 0.3;
 
         float roll = 3.14;
-        float pitch = step*6.28/nsteps + 0.01;
+        float pitch = step*6.28/nsteps*5 + 0.01;
         float yaw = 1.1;
 
-        // float offset_x = width/2 * (1 + 0.5*sin(6.28*step/nsteps));
-        // float offset_y = height/2 * (1 + 0.5*sin(6.28*step/nsteps + 2));
+
+
         float offset_x = width/2;
         float offset_y = height/2 + 50;
+        // float offset_x = width/2;
+        // float offset_y = height/2 + 50;
         float scale = 800;
-        float zdist = 30;
+
+
+        float xdist = 10*(0.5*sin(6.28*step/nsteps));
+        // float ydist = 0;
+        float ydist = 10*(0.5*sin(6.28*step/nsteps + 2));
+        float zdist = 30 + 20*(1 + 0.5*sin(6.28*step/nsteps + 2));
 
         float light[] = {300, 300, 0};
 
@@ -367,8 +366,8 @@ int main() {
             float vx = vertices_unrot[3*i + 0] - 0.5;
             float vy = vertices_unrot[3*i + 1] - 0.5;
             float vz = vertices_unrot[3*i + 2] - 0.5;
-            vertices[3*i + 0] = R[0]*vx + R[1]*vy + -R[2]*vz;
-            vertices[3*i + 1] = R[3]*vx + R[4]*vy + -R[5]*vz;
+            vertices[3*i + 0] = R[0]*vx + R[1]*vy + -R[2]*vz + xdist;
+            vertices[3*i + 1] = R[3]*vx + R[4]*vy + -R[5]*vz + ydist;
             vertices[3*i + 2] = R[6]*vx + R[7]*vy + -R[8]*vz + zdist;
         }
 
@@ -438,7 +437,7 @@ int main() {
             }
 
             
-            float face_min_z = fmin(fmin(v0z, v1z), v2z);
+            float face_min_z = fmin3(v0z, v1z, v2z);
             // float face_avg = (v0z + v1z + v2z) / 3.;
             // float face_z = 0.99*face_min_z + 0.01*face_avg;
 
@@ -461,9 +460,9 @@ int main() {
             avgz /= avg_length;
 
             facing_ratio = fmaxf(avgx * nx + avgy * ny + avgz * nz, 0.2);
-            face_colors[3 * i + 0] = faces[6 * i + 3] * facing_ratio;
-            face_colors[3 * i + 1] = faces[6 * i + 4] * facing_ratio;
-            face_colors[3 * i + 2] = faces[6 * i + 5] * facing_ratio;
+            face_colors[3 * i + 0] = faces[6 * i + 3] * facing_ratio; //b
+            face_colors[3 * i + 1] = faces[6 * i + 4] * facing_ratio; //g
+            face_colors[3 * i + 2] = faces[6 * i + 5] * facing_ratio; //r
 
             // printf("changing: %d %d\n", faces[6 * i + 3], face_colors[3 * i + 0]);
 
