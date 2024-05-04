@@ -40,6 +40,7 @@ for i in range(len(faces)): #for each face
         tri_data[j] = index
 
     tri_data[3:6] = generate_random_color()
+    tri_data[3:6] = 235, 241, 244
     
     triangles.append(tri_data)
 triangles = np.array(triangles)
