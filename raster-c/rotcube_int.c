@@ -49,12 +49,13 @@ int pt_in_tri(int16_t p[2], int16_t p0[2], int16_t p1[2], int16_t p2[2]) {
     //            r0    - r4    *  r7    - r5    -  r1     -  r5   * r6    - r4
     int16_t t = (p1[0] - p0[0]) * (p[1] - p0[1]) - (p1[1] - p0[1]) * (p[0] - p0[0]);
     //           r2     - r0    *  r7   - r1     -   r3    - r1    *  r6   -  r0
-    if ((s < 0) != (t < 0) && s != 0 && t != 0) {
+    // if ((s < 0) != (t < 0) && s != 0 && t != 0) {
+    if ((s&0x8000) ^ (t&0x8000) && s != 0 && t != 0) {
         return 0;
     }
     int16_t d = (p2[0] - p1[0]) * (p[1] - p1[1]) - (p2[1] - p1[1]) * (p[0] - p1[0]);
             //    r4    - r2     *   r7   - r3    -    r5    - r3   *  r6    - r2
-    return d == 0 || (d < 0) == (s + t <= 0);
+    return (d == 0) || ((d < 0) == (s + t <= 0));
 }
 
 int max3(int a, int b, int c){
@@ -335,8 +336,9 @@ int main() {
         // float pitch = step*6.28/nsteps + 0.01;
         // float yaw = 2*step*6.28/nsteps + 0.3;
 
-        float roll = 3.14;
+        float roll = 3.14 + step*6.28/nsteps*5;
         float pitch = step*6.28/nsteps*5 + 0.01;
+        // float pitch = 0.01;
         float yaw = 1.1;
 
 
@@ -351,7 +353,7 @@ int main() {
         float xdist = 10*(0.5*sin(6.28*step/nsteps));
         // float ydist = 0;
         float ydist = 10*(0.5*sin(6.28*step/nsteps + 2));
-        float zdist = 30 + 20*(1 + 0.5*sin(6.28*step/nsteps + 2));
+        float zdist = 100;
 
         float light[] = {300, 300, 0};
 
