@@ -44,15 +44,16 @@ void write_bmp(const char *filename, uint8_t *data, int width, int height) {
     fclose(file);
 }
 
-int pt_in_tri(int32_t p[2], int32_t p0[2], int32_t p1[2], int32_t p2[2]) {
-    int32_t s = (p0[0] - p2[0]) * (p[1] - p2[1]) - (p0[1] - p2[1]) * (p[0] - p2[0]);
-    int32_t t = (p1[0] - p0[0]) * (p[1] - p0[1]) - (p1[1] - p0[1]) * (p[0] - p0[0]);
-
+int pt_in_tri(int16_t p[2], int16_t p0[2], int16_t p1[2], int16_t p2[2]) {
+    int16_t s = (p0[0] - p2[0]) * (p[1] - p2[1]) - (p0[1] - p2[1]) * (p[0] - p2[0]);
+    //            r0    - r4    *  r7    - r5    -  r1     -  r5   * r6    - r4
+    int16_t t = (p1[0] - p0[0]) * (p[1] - p0[1]) - (p1[1] - p0[1]) * (p[0] - p0[0]);
+    //           r2     - r0    *  r7   - r1     -   r3    - r1    *  r6   -  r0
     if ((s < 0) != (t < 0) && s != 0 && t != 0) {
         return 0;
     }
-
-    int32_t d = (p2[0] - p1[0]) * (p[1] - p1[1]) - (p2[1] - p1[1]) * (p[0] - p1[0]);
+    int16_t d = (p2[0] - p1[0]) * (p[1] - p1[1]) - (p2[1] - p1[1]) * (p[0] - p1[0]);
+            //    r4    - r2     *   r7   - r3    -    r5    - r3   *  r6    - r2
     return d == 0 || (d < 0) == (s + t <= 0);
 }
 
@@ -64,8 +65,18 @@ int min3(int a, int b, int c){
     return (a<=b&&a<=c)?a:(b<=a&&b<=c)?b:c;
 }
 
+void cross_product(float v1[3], float v2[3], float result[3]) {
+    result[0] = v1[1] * v2[2] - v1[2] * v2[1];
+    result[1] = v1[2] * v2[0] - v1[0] * v2[2];
+    result[2] = v1[0] * v2[1] - v1[1] * v2[0];
+}
 
-
+void normalize(float vector[3]) {
+    float magnitude = sqrtf(vector[0]*vector[0] + vector[1]*vector[1] + vector[2]*vector[2]);
+    vector[0] /= magnitude;
+    vector[1] /= magnitude;
+    vector[2] /= magnitude;
+}
 
 
 //cube
@@ -367,7 +378,7 @@ int main() {
         int n_visible_faces = 0;
         float facing_ratio = 1;
 
-        int32_t tri_list[3 * 2 * n_faces + n_faces + n_faces];
+        int16_t tri_list[8 * n_faces];
         for (int i = 0; i < n_faces; i++) {
             float v0x = vertices[3 * faces[6 * i + 0] + 0];
             float v0y = vertices[3 * faces[6 * i + 0] + 1];
@@ -381,8 +392,6 @@ int main() {
             float v2y = vertices[3 * faces[6 * i + 2] + 1];
             float v2z = vertices[3 * faces[6 * i + 2] + 2];
 
-
-
             // Calculate normal
             float edge1x = v1x - v0x;
             float edge1y = v1y - v0y;
@@ -393,17 +402,13 @@ int main() {
             float nx = edge1y * edge2z - edge1z * edge2y;
             float ny = edge1z * edge2x - edge1x * edge2z;
             float nz = edge1x * edge2y - edge1y * edge2x; //kinda like area
-            float norm_length = sqrt(nx * nx + ny * ny + nz * nz);
+            float norm_length = sqrtf(nx * nx + ny * ny + nz * nz);
             nx /= norm_length;
             ny /= norm_length;
             nz /= norm_length;
             if(nz <= 0){
                 continue; //skip this triangle
             }
-
-            // Optionally normalize the normal vector
-            float length = sqrt(nx * nx + ny * ny + nz * nz);
-
             
             float v0x_screen = 0;
             float v0y_screen = 0;
@@ -437,15 +442,15 @@ int main() {
             // float face_avg = (v0z + v1z + v2z) / 3.;
             // float face_z = 0.99*face_min_z + 0.01*face_avg;
 
-            tri_list[8 * n_visible_faces + 0] = (int32_t) v0x_screen;
-            tri_list[8 * n_visible_faces + 1] = (int32_t) v0y_screen;
-            tri_list[8 * n_visible_faces + 2] = (int32_t) v1x_screen;
-            tri_list[8 * n_visible_faces + 3] = (int32_t) v1y_screen;
-            tri_list[8 * n_visible_faces + 4] = (int32_t) v2x_screen;
-            tri_list[8 * n_visible_faces + 5] = (int32_t) v2y_screen;
+            tri_list[8 * n_visible_faces + 0] = (int16_t) v0x_screen;
+            tri_list[8 * n_visible_faces + 1] = (int16_t) v0y_screen;
+            tri_list[8 * n_visible_faces + 2] = (int16_t) v1x_screen;
+            tri_list[8 * n_visible_faces + 3] = (int16_t) v1y_screen;
+            tri_list[8 * n_visible_faces + 4] = (int16_t) v2x_screen;
+            tri_list[8 * n_visible_faces + 5] = (int16_t) v2y_screen;
 
-            tri_list[8 * n_visible_faces + 6] = (int32_t) face_min_z; //precacluate
-            tri_list[8 * n_visible_faces + 7] = (int32_t) i; //face index
+            tri_list[8 * n_visible_faces + 6] = (int16_t) face_min_z; //precacluate
+            tri_list[8 * n_visible_faces + 7] = (int16_t) i; //face index
 
             float avgx = 0.3333*(v0x+v1x+v2x + light[0]);
             float avgy = 0.3333*(v0y+v1y+v2y + light[1]);
@@ -460,7 +465,7 @@ int main() {
             face_colors[3 * i + 1] = faces[6 * i + 4] * facing_ratio;
             face_colors[3 * i + 2] = faces[6 * i + 5] * facing_ratio;
 
-            printf("changing: %d %d\n", faces[6 * i + 3], face_colors[3 * i + 0]);
+            // printf("changing: %d %d\n", faces[6 * i + 3], face_colors[3 * i + 0]);
 
             n_visible_faces++;
         }
@@ -489,19 +494,19 @@ int main() {
 
                     uint8_t is_in_tri = 0;
 
-                    int32_t v0x = tri_list[8*i + 0];
-                    int32_t v0y = tri_list[8*i + 1];
-                    int32_t v1x = tri_list[8*i + 2];
-                    int32_t v1y = tri_list[8*i + 3];
-                    int32_t v2x = tri_list[8*i + 4];
-                    int32_t v2y = tri_list[8*i + 5];
-                    int32_t face_min_z = tri_list[8*i + 6];
-                    int32_t face_i = tri_list[8*i + 7];
+                    int16_t v0x = tri_list[8*i + 0];
+                    int16_t v0y = tri_list[8*i + 1];
+                    int16_t v1x = tri_list[8*i + 2];
+                    int16_t v1y = tri_list[8*i + 3];
+                    int16_t v2x = tri_list[8*i + 4];
+                    int16_t v2y = tri_list[8*i + 5];
+                    int16_t face_min_z = tri_list[8*i + 6];
+                    int16_t face_i = tri_list[8*i + 7];
 
-                    int32_t p[2] = {x, y};
-                    int32_t p0[2] = {v0x, v0y};
-                    int32_t p1[2] = {v1x, v1y};
-                    int32_t p2[2] = {v2x, v2y};
+                    int16_t p[2] = {x, y};
+                    int16_t p0[2] = {v0x, v0y};
+                    int16_t p1[2] = {v1x, v1y};
+                    int16_t p2[2] = {v2x, v2y};
 
                     //saves around 6% time
                     if(x > max3(v0x, v1x, v2x)) is_in_tri = 0;
